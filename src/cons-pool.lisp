@@ -2,22 +2,24 @@
 (defpackage cons-pool
   (:use :cl)
   (:import-from :sb-ext :atomic-update)
+  (:import-from :kmrcl :with-gensyms)
   (:export :release :alloc))
 (in-package :cons-pool)
 
 (defvar *pool* nil)
 
-(defun release (cell)
-  (atomic-update (symbol-value '*pool*) (lambda (pool)
-					  (rplacd cell pool))))
+(defmacro release (cell place)
+  (with-gensyms (cellsym)
+    `(let ((,cellsym ,cell))
+       (atomic-update ,place (lambda (pool)
+			       (rplacd ,cellsym pool))))))
 
-(defun alloc (&optional new-alloc)
-  (let (result)
-    (atomic-update (symbol-value '*pool*)
-		   (lambda (pool)
-		     (setf result pool)
-		     (cdr pool)))
-    (when result
-      (setf ;(car result) nil
-	    (cdr result) nil))
-    (or result (and new-alloc (cons nil nil)))))
+(defmacro alloc (place &optional new-alloc)
+  `(let (result)
+     (atomic-update ,place
+		    (lambda (pool)
+		      (setf result pool)
+		      (cdr pool)))
+     (when result
+       (setf (cdr result) nil))
+     (or result (and ,new-alloc (cons nil nil)))))

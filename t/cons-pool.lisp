@@ -43,7 +43,8 @@
 	     ,@body))))))
 
 ;(save-env (*loop*) (+ 1 2))
-       
+
+(defvar pool nil)
 (let* ((*random-state* (make-random-state t))
        (num (random 10000))
        (count (+ num 2000))
@@ -52,26 +53,24 @@
   (do ((cell source))
       ((null cell) nil)
     (setf cell (prog1 (cdr cell)
-		 (release cell))))
-  (is cons-pool::*pool* 
+		 (release cell (symbol-value 'pool)))))
+  (is pool
       (nreverse (loop for i below count collect i)))
 
-  (save-env
-   (cons-pool::*pool*)
-   (setf cons-pool::*pool* (nreverse (loop for i below count collect i)))
-   (is
-    (let* ((thread-count (floor count 1000))
-	   (threads
-	    (loop for i below thread-count
-	       collect (make-worker (lambda ()
-				      (loop with allocated = 0
-					 for m = (alloc)
-					 while m
-					 do (incf allocated)
-					 finally (return allocated)))))))
-      (start thread-count)
-      (reduce #'+ (mapcar #'join-thread threads)))
-    count)))
+  (setf pool (nreverse (loop for i below count collect i)))
+  (is
+   (let* ((thread-count (floor count 1000))
+	  (threads
+	   (loop for i below thread-count
+	      collect (make-worker (lambda ()
+				     (loop with allocated = 0
+					for m = (alloc (symbol-value 'pool))
+					while m
+					do (incf allocated)
+					finally (return allocated)))))))
+     (start thread-count)
+     (reduce #'+ (mapcar #'join-thread threads)))
+   count))
 
 
 (finalize)

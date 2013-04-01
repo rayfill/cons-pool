@@ -11,7 +11,7 @@
   :version "0.1"
   :author ""
   :license ""
-  :depends-on ()
+  :depends-on (:kmrcl)
   :components ((:module "src"
                 :components
                 ((:file "cons-pool"))))
